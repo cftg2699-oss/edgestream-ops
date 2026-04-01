@@ -29,6 +29,13 @@ ws.on('error', err => {
   process.exit(1);
 });
 
+// Push metrics to server every second so dashboard can show them
+setInterval(() => {
+  if (ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'metrics', data: metrics.get() }));
+  }
+}, 1000);
+
 process.on('SIGINT', () => {
   ws.close();
   layout.teardown();
