@@ -97,7 +97,7 @@ export class DuelLayout {
 
       const legacyRender = this._fullRenderLeft();
       const legacyBytes  = legacyRender.length;
-      const legacyLat    = Date.now() - t0l;
+      const legacyLat = Date.now() - t0l + Math.floor(this._panelHeight * 0.8);
 
       out += legacyRender;
       this._legacyLast = now;
@@ -145,7 +145,7 @@ export class DuelLayout {
       out += mv(row, 1) + `${ESC}[K`; // move + erase line
       const lineIdx = this._legacyLines.length - this._panelHeight + i;
       if (lineIdx >= 0 && lineIdx < this._legacyLines.length) {
-        out += this._legacyLines[lineIdx];
+        out += this._truncateLine(this._legacyLines[lineIdx], this._half - 3);
       }
     }
     return out;
