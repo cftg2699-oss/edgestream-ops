@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdgeStream OPS — Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080c10;
+    --bg2:      #0d1117;
+    --bg3:      #111820;
+    --border:   #1a2a3a;
+    --cyan:     #00e5ff;
+    --green:    #00ff88;
+    --red:      #ff3d5a;
+    --yellow:   #ffcc00;
+    --dim:      #3a5060;
+    --text:     #c8dce8;
+    --mono:     'Share Tech Mono', monospace;
+    --sans:     'Barlow Condensed', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Grid noise */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(0,229,255,0.03) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(0,255,136,0.03) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(0,229,255,0.04) 0%, transparent 100%);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    font-size: 28px;
+    filter: drop-shadow(0 0 12px var(--cyan));
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { filter: drop-shadow(0 0 8px var(--cyan)); }
+    50%       { filter: drop-shadow(0 0 20px var(--cyan)); }
+  }
+
+  .logo-text {
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--cyan);
+  }
+
+  .logo-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    margin-top: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 12px var(--green);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  .status-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 2px;
+  }
+
+  .uptime-display {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  /* ── Main grid ── */
+  main {
+    position: relative;
+    z-index: 10;
+    padding: 24px 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 20px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.4;
+  }
+
+  .card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  /* ── Gauge ── */
+  .gauge-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .gauge-svg { overflow: visible; }
+
+  .gauge-track {
+    fill: none;
+    stroke: var(--bg3);
+    stroke-width: 10;
+    stroke-linecap: round;
+  }
+
+  .gauge-fill {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                stroke 0.4s ease;
+    transform-origin: center;
+    transform: rotate(-220deg);
+  }
+
+  .gauge-center-val {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 400;
+    fill: #fff;
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+
+  .gauge-center-unit {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    fill: var(--dim);
+    text-anchor: middle;
+  }
+
+  .gauge-label-bottom {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  /* ── Duel comparison ── */
+  .duel-card {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .duel-panel {
+    padding: 24px 28px;
+    position: relative;
+  }
+
+  .duel-panel.legacy  { border-right: 1px solid var(--border); }
+  .duel-panel.edge    { background: rgba(0,255,136,0.02); }
+
+  .duel-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .duel-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .legacy .duel-dot { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+  .edge   .duel-dot { background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 1.5s infinite; }
+
+  .duel-panel-name {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .legacy .duel-panel-name { color: var(--red); }
+  .edge   .duel-panel-name { color: var(--green); }
+
+  .duel-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .duel-metric { display: flex; flex-direction: column; gap: 4px; }
+
+  .duel-metric-val {
+    font-family: var(--mono);
+    font-size: 32px;
+    line-height: 1;
+  }
+  .legacy .duel-metric-val { color: var(--red); }
+  .edge   .duel-metric-val { color: var(--green); }
+
+  .duel-metric-label {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform: uppercase;
+  }
+
+  /* ── Line chart ── */
+  .chart-card { grid-column: 1 / -1; }
+
+  .chart-container {
+    position: relative;
+    height: 140px;
+  }
+
+  canvas.chart {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .chart-legend {
+    display: flex;
+    gap: 24px;
+    margin-top: 12px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .legend-dot {
+    width: 24px; height: 2px;
+    border-radius: 1px;
+  }
+
+  /* ── Events ticker ── */
+  .ticker-card { grid-column: 1 / -1; }
+
+  .ticker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 160px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .ticker-list::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--bg2));
+    pointer-events: none;
+  }
+
+  .ticker-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    animation: slideIn 0.2s ease;
+    background: rgba(255,255,255,0.01);
+    border-left: 2px solid transparent;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .ticker-row.critical { border-left-color: var(--red);    color: #ff8a9a; }
+  .ticker-row.high     { border-left-color: var(--yellow); color: #ffe066; }
+  .ticker-row.medium   { border-left-color: var(--cyan);   color: #80f0ff; }
+  .ticker-row.low      { border-left-color: var(--green);  color: #80ffbb; }
+  .ticker-row.info     { border-left-color: var(--dim);    color: var(--dim); }
+
+  .ticker-ts   { color: var(--dim); font-size: 10px; min-width: 85px; }
+  .ticker-sev  { min-width: 70px; font-weight: bold; }
+  .ticker-src  { min-width: 70px; color: var(--cyan); }
+  .ticker-pay  { color: var(--text); opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+
+  /* ── Speedup badge ── */
+  .speedup-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: radial-gradient(ellipse at center, rgba(0,255,136,0.06) 0%, transparent 70%);
+    border-color: rgba(0,255,136,0.2);
+  }
+
+  .speedup-number {
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: 72px;
+    line-height: 1;
+    color: var(--green);
+    text-shadow: 0 0 40px rgba(0,255,136,0.5);
+    letter-spacing: -2px;
+  }
+
+  .speedup-unit {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--green);
+    letter-spacing: 4px;
+    opacity: 0.7;
+  }
+
+  .speedup-label {
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  /* ── EPS counter ── */
+  .eps-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .eps-number {
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: 64px;
+    line-height: 1;
+    color: var(--yellow);
+    text-shadow: 0 0 30px rgba(255,204,0,0.4);
+    letter-spacing: -1px;
+    transition: all 0.3s ease;
+  }
+
+  .eps-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    margin-top: 6px;
+  }
+
+  /* ── Connecting state ── */
+  .connecting {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    z-index: 999;
+    transition: opacity 0.5s ease;
+  }
+
+  .connecting.hidden { opacity: 0; pointer-events: none; }
+
+  .connecting-icon { font-size: 48px; animation: pulse 1.5s infinite; }
+
+  .connecting-text {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--cyan);
+    letter-spacing: 4px;
+  }
+
+  .connecting-dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+  }
+
+  @keyframes dots {
+    0%   { content: ''; }
+    33%  { content: '.'; }
+    66%  { content: '..'; }
+    100% { content: '...'; }
+  }
+</style>
+</head>
+<body>
+
+<div class="connecting" id="connecting">
+  <div class="connecting-icon">⚡</div>
+  <div class="connecting-text">CONNECTING TO EDGESTREAM<span class="connecting-dots"></span></div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-text">EdgeStream OPS</div>
+      <div class="logo-sub">SHADOW DUEL MODE — LIVE DASHBOARD v2.1</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-label" id="statusLabel">CONNECTING</div>
+    <div class="uptime-display" id="uptimeDisplay">UPTIME: —</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- Latency Gauge — Legacy -->
+  <div class="card">
+    <div class="card-label">⬛ Legacy Latency</div>
+    <div class="gauge-wrap">
+      <svg class="gauge-svg" width="180" height="110" viewBox="0 0 180 110">
+        <path class="gauge-track" d="M 20 100 A 70 70 0 1 1 160 100" />
+        <path class="gauge-fill" id="gaugeLegacy"
+          d="M 20 100 A 70 70 0 1 1 160 100"
+          stroke="var(--red)"
+          stroke-dasharray="220"
+          stroke-dashoffset="220" />
+        <text class="gauge-center-val" id="gLegacyVal" x="90" y="80">—</text>
+        <text class="gauge-center-unit" x="90" y="100">MS</text>
+      </svg>
+      <div class="gauge-label-bottom" style="color:var(--red)">LEGACY RENDER</div>
+    </div>
+  </div>
+
+  <!-- Latency Gauge — EdgeStream -->
+  <div class="card">
+    <div class="card-label">🟢 EdgeStream Latency</div>
+    <div class="gauge-wrap">
+      <svg class="gauge-svg" width="180" height="110" viewBox="0 0 180 110">
+        <path class="gauge-track" d="M 20 100 A 70 70 0 1 1 160 100" />
+        <path class="gauge-fill" id="gaugeEdge"
+          d="M 20 100 A 70 70 0 1 1 160 100"
+          stroke="var(--green)"
+          stroke-dasharray="220"
+          stroke-dashoffset="220" />
+        <text class="gauge-center-val" id="gEdgeVal" x="90" y="80">—</text>
+        <text class="gauge-center-unit" x="90" y="100">MS</text>
+      </svg>
+      <div class="gauge-label-bottom" style="color:var(--green)">EDGESTREAM RENDER</div>
+    </div>
+  </div>
+
+  <!-- Speedup badge -->
+  <div class="card speedup-card">
+    <div class="card-label" style="text-align:center">⚡ Render Speedup</div>
+    <div class="speedup-number" id="speedupNum">—</div>
+    <div class="speedup-unit">× FASTER</div>
+    <div class="speedup-label">EdgeStream vs Legacy</div>
+  </div>
+
+  <!-- Duel comparison -->
+  <div class="card duel-card">
+    <div class="duel-panel legacy">
+      <div class="duel-panel-title">
+        <div class="duel-dot"></div>
+        <div class="duel-panel-name">Legacy Engine</div>
+      </div>
+      <div class="duel-metrics">
+        <div class="duel-metric">
+          <div class="duel-metric-val" id="dLegacyLat">—</div>
+          <div class="duel-metric-label">Latency (ms)</div>
+        </div>
+        <div class="duel-metric">
+          <div class="duel-metric-val" id="dLegacyFps">—</div>
+          <div class="duel-metric-label">FPS</div>
+        </div>
+      </div>
+    </div>
+    <div class="duel-panel edge">
+      <div class="duel-panel-title">
+        <div class="duel-dot"></div>
+        <div class="duel-panel-name">EdgeStream Engine</div>
+      </div>
+      <div class="duel-metrics">
+        <div class="duel-metric">
+          <div class="duel-metric-val" id="dEdgeLat">—</div>
+          <div class="duel-metric-label">Latency (ms)</div>
+        </div>
+        <div class="duel-metric">
+          <div class="duel-metric-val" id="dEdgeFps">—</div>
+          <div class="duel-metric-label">FPS</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EPS -->
+  <div class="card eps-card">
+    <div class="card-label" style="text-align:center">Events / Second</div>
+    <div class="eps-number" id="epsNum">0</div>
+    <div class="eps-label">EV/S LIVE</div>
+  </div>
+
+  <!-- FPS chart -->
+  <div class="card chart-card" style="grid-column: 2 / -1;">
+    <div class="card-label">FPS Over Time</div>
+    <div class="chart-container">
+      <canvas class="chart" id="fpsChart"></canvas>
+    </div>
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Legacy FPS</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>EdgeStream FPS</div>
+    </div>
+  </div>
+
+  <!-- Latency chart -->
+  <div class="card chart-card">
+    <div class="card-label">Latency Over Time (ms)</div>
+    <div class="chart-container">
+      <canvas class="chart" id="latChart"></canvas>
+    </div>
+    <div class="chart-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Legacy</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>EdgeStream</div>
+    </div>
+  </div>
+
+  <!-- Live ticker -->
+  <div class="card ticker-card" style="grid-column: 2 / -1;">
+    <div class="card-label">Live Event Feed</div>
+    <div class="ticker-list" id="ticker"></div>
+  </div>
+
+</main>
+
+<script>
+// ── WebSocket connection ───────────────────────────────────────────────────────
+const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+let ws, reconnectTimer;
+let metrics = {};
+let connected = false;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    connected = true;
+    document.getElementById('connecting').classList.add('hidden');
+    document.getElementById('statusLabel').textContent = 'LIVE';
+    document.getElementById('statusDot').style.background = 'var(--green)';
+    document.getElementById('statusDot').style.boxShadow = '0 0 12px var(--green)';
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'event') handleEvent(msg.data);
+      if (msg.type === 'metrics') handleMetrics(msg.data);
+    } catch(_) {}
+  };
+
+  ws.onclose = () => {
+    connected = false;
+    document.getElementById('statusLabel').textContent = 'RECONNECTING';
+    document.getElementById('statusDot').style.background = 'var(--yellow)';
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, 2000);
+  };
+}
+
+connect();
+
+// ── Event ticker ──────────────────────────────────────────────────────────────
+let eventCount = 0;
+const MAX_TICKER = 30;
+
+function handleEvent(ev) {
+  eventCount++;
+  const ticker = document.getElementById('ticker');
+  const ts = new Date(ev.timestamp).toISOString().slice(11, 23);
+  const sev = (ev.severity || 'info').toLowerCase();
+  const pay = JSON.stringify(ev.payload || {}).slice(0, 60);
+
+  const row = document.createElement('div');
+  row.className = `ticker-row ${sev}`;
+  row.innerHTML = `
+    <span class="ticker-ts">${ts}</span>
+    <span class="ticker-sev">${(ev.severity||'INFO').toUpperCase()}</span>
+    <span class="ticker-src">${ev.source||'—'}</span>
+    <span class="ticker-pay">${pay}</span>
+  `;
+
+  ticker.insertBefore(row, ticker.firstChild);
+  while (ticker.children.length > MAX_TICKER) ticker.removeChild(ticker.lastChild);
+}
+
+// ── Metrics (polled from server) ──────────────────────────────────────────────
+async function fetchMetrics() {
+  try {
+    const r = await fetch('/metrics');
+    if (!r.ok) return;
+    const m = await r.json();
+    updateUI(m);
+  } catch(_) {}
+}
+
+setInterval(fetchMetrics, 500);
+
+// ── Chart data ────────────────────────────────────────────────────────────────
+const MAX_POINTS = 60;
+const fpsData   = { legacy: [], edge: [], labels: [] };
+const latData   = { legacy: [], edge: [], labels: [] };
+
+function pushPoint(store, legVal, edgVal) {
+  const t = new Date().toLocaleTimeString('en', { hour12: false });
+  store.legacy.push(legVal);
+  store.edge.push(edgVal);
+  store.labels.push(t);
+  if (store.legacy.length > MAX_POINTS) { store.legacy.shift(); store.edge.shift(); store.labels.shift(); }
+}
+
+// ── Gauge helper ──────────────────────────────────────────────────────────────
+function setGauge(id, valId, value, max) {
+  const el = document.getElementById(id);
+  const vl = document.getElementById(valId);
+  if (!el || !vl) return;
+  const pct = Math.min(value / max, 1);
+  const total = 220;
+  el.style.strokeDashoffset = total - (total * pct);
+  vl.textContent = value < 100 ? value.toFixed(1) : Math.round(value);
+}
+
+// ── UI update ─────────────────────────────────────────────────────────────────
+function updateUI(m) {
+  metrics = m;
+
+  // Gauges
+  setGauge('gaugeLegacy', 'gLegacyVal', m.latency_legacy || 0, 200);
+  setGauge('gaugeEdge',   'gEdgeVal',   m.latency_edge   || 0, 50);
+
+  // Speedup
+  const su = m.fps_legacy > 0 ? (m.fps_edge / m.fps_legacy) : 0;
+  document.getElementById('speedupNum').textContent = su > 0 ? su.toFixed(1) : '—';
+
+  // Duel panel
+  document.getElementById('dLegacyLat').textContent = (m.latency_legacy || 0).toFixed(1);
+  document.getElementById('dLegacyFps').textContent = (m.fps_legacy || 0).toFixed(1);
+  document.getElementById('dEdgeLat').textContent   = (m.latency_edge  || 0).toFixed(1);
+  document.getElementById('dEdgeFps').textContent   = (m.fps_edge || 0).toFixed(1);
+
+  // EPS
+  document.getElementById('epsNum').textContent = m.events_per_sec || 0;
+
+  // Uptime
+  document.getElementById('uptimeDisplay').textContent = `UPTIME: ${(m.uptime||0).toFixed(0)}s`;
+
+  // Charts
+  pushPoint(fpsData, m.fps_legacy || 0, m.fps_edge || 0);
+  pushPoint(latData, m.latency_legacy || 0, m.latency_edge || 0);
+  drawChart('fpsChart', fpsData, ['var(--red-rgb,255,61,90)', 'var(--green-rgb,0,255,136)'], [255,61,90], [0,255,136]);
+  drawChart('latChart', latData, null, [255,61,90], [0,229,255]);
+}
+
+// ── Canvas chart ──────────────────────────────────────────────────────────────
+function drawChart(canvasId, data, colors, rgb1, rgb2) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = (H / 4) * i;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  if (data.legacy.length < 2) return;
+
+  const allVals = [...data.legacy, ...data.edge];
+  const maxVal  = Math.max(...allVals, 1);
+  const n = data.legacy.length;
+
+  function drawLine(arr, r, g, b) {
+    if (arr.length < 2) return;
+    // Fill
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0,   `rgba(${r},${g},${b},0.15)`);
+    grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+    ctx.beginPath();
+    arr.forEach((v, i) => {
+      const x = (i / (n - 1)) * W;
+      const y = H - (v / maxVal) * H * 0.9 - H * 0.05;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    arr.forEach((v, i) => {
+      const x = (i / (n - 1)) * W;
+      const y = H - (v / maxVal) * H * 0.9 - H * 0.05;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.9)`;
+    ctx.lineWidth   = 2;
+    ctx.lineJoin    = 'round';
+    ctx.stroke();
+
+    // Last point glow
+    const lx = W, ly = H - (arr[arr.length-1] / maxVal) * H * 0.9 - H * 0.05;
+    ctx.beginPath();
+    ctx.arc(lx - W/(n-1), ly, 4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  drawLine(data.legacy, ...rgb1);
+  drawLine(data.edge,   ...rgb2);
+}
+</script>
+</body>
+</html>
