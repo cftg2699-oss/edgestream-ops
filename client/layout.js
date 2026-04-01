@@ -124,7 +124,18 @@ export class DuelLayout {
     return out;
   }
 
-  _fmtBytes(n) { if(n>=1e6) return (n/1e6).toFixed(1)+'MB'; if(n>=1e3) return (n/1e3).toFixed(1)+'KB'; return n+'B'; }
+_fmtBytes(n) { if(n>=1e6) return (n/1e6).toFixed(1)+'MB'; if(n>=1e3) return (n/1e3).toFixed(1)+'KB'; return n+'B'; }
   _vlen(s) { return s.replace(/\x1b\[[0-9;]*m/g,'').length; }
   get metrics() { return this._metrics; }
+
+  async saveRecording(outPath) {
+    const fs   = (await import('fs')).default;
+    const path = (await import('path')).default;
+    const header = { version: 2, width: this._cols, height: this._rows,
+                     timestamp: Math.floor(this._recStart / 1000), title: 'EdgeStream Shadow Duel' };
+    const lines = [JSON.stringify(header), ...this._recFrames.map(f => JSON.stringify(f))];
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, lines.join('\n'));
+  }
+
 }
