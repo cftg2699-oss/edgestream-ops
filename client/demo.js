@@ -80,7 +80,7 @@ function shutdown(reason) {
 
   if (recording) {
     const recPath = path.resolve(__dirname, '../recordings/demo.asciicast');
-    layout.saveRecording(recPath).then(() => {
+    await layout.saveRecording(recPath).then(() => {
       console.log(`  \x1b[90mRecording saved → recordings/demo.asciicast\x1b[0m\n`);
       process.exit(0);
     }).catch(() => process.exit(0));
