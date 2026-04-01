@@ -1,0 +1,25 @@
+{
+  "name": "edgestream-ops",
+  "version": "2.1.0",
+  "description": "Ultra-low latency event visualization platform — Shadow Duel Mode",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "bin": { "edgestream": "./bin/cli.js" },
+  "scripts": {
+    "start":          "node src/server/server.js",
+    "duel":           "node client/duel.js",
+    "simulate":       "node simulator/run.js",
+    "shadow":         "node client/shadow.js",
+    "demo":           "node client/demo.js --industry=trading --rate=5000",
+    "demo:trading":   "node client/demo.js --industry=trading --rate=5000",
+    "demo:soc":       "node client/demo.js --industry=soc --rate=5000",
+    "demo:telecom":   "node client/demo.js --industry=telecom --rate=5000",
+    "benchmark":      "node src/engine/benchmark.js",
+    "record":         "node client/demo.js --industry=trading --rate=5000 --record"
+  },
+  "dependencies": {
+    "ansi-styles":            "^6.2.1",
+    "is-fullwidth-code-point":"^4.0.0",
+    "ws":                     "^8.18.0"
+  }
+}
