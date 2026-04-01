@@ -8,7 +8,7 @@
 
 import http from 'http';
 import { WebSocketServer } from 'ws';
-import { Simulator } from '../simulator/index.js';
+import { Simulator } from '../../simulator/index.js';
 
 const PORT     = parseInt(process.env.PORT || '8080', 10);
 const TOKEN    = process.env.EDGESTREAM_TOKEN || null;
