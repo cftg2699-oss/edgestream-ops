@@ -1,0 +1,29 @@
+{
+  "_comment": "Field mapping for Shadow Mode. Map client fields → EdgeStream standard fields.",
+  "_doc": "Use dot-notation for nested fields, e.g. 'meta.source'",
+
+  "id":        "id",
+  "timestamp": "timestamp",
+  "source":    "source",
+  "severity":  "severity",
+  "payload":   "payload",
+
+  "_severity_map": {
+    "0": "critical",
+    "1": "high",
+    "2": "medium",
+    "3": "low",
+    "4": "info",
+    "ERROR":   "critical",
+    "WARN":    "high",
+    "WARNING": "high",
+    "INFO":    "info",
+    "DEBUG":   "low"
+  },
+
+  "_examples": {
+    "trading_feed":  { "id": "trade_id", "timestamp": "exec_time", "source": "venue", "severity": "urgency", "payload": "order" },
+    "soc_alerts":    { "id": "alert_id", "timestamp": "detected_at", "source": "sensor", "severity": "risk_level", "payload": "indicators" },
+    "telecom_alarms":{ "id": "alarm_id", "timestamp": "raised_at", "source": "network_element", "severity": "perceived_severity", "payload": "additional_text" }
+  }
+}
