@@ -20,6 +20,7 @@ export class MetricsCollector {
     this._eps           = 0;
     this._epsWindow     = 0;
     this._epsLast       = Date.now();
+    this._legBytesEquiv = 0;
   }
 
   recordLegacy(latMs, bytes) {
@@ -29,7 +30,8 @@ export class MetricsCollector {
     this._legFrames++;
   }
 
-  recordEdge(latMs, bytes) {
+  recordEdge(latMs, bytes, fullLineBytes = 0) {
+    this._legBytesEquiv += fullLineBytes;
     this._edgLat.push(latMs);
     if (this._edgLat.length > 200) this._edgLat.shift();
     this._edgBytes += bytes;
@@ -50,7 +52,7 @@ export class MetricsCollector {
     const elapsed = ((Date.now() - this._t0) / 1000) || 0.001;
     const ll = parseFloat(this._avg(this._legLat).toFixed(2));
     const el = parseFloat(this._avg(this._edgLat).toFixed(2));
-    const legPerFrame = this._legFrames > 0 ? this._legBytes / this._legFrames : 0;
+    const legPerFrame = this._edgFrames > 0 ? this._legBytesEquiv / this._edgFrames : 0;
     const edgPerFrame = this._edgFrames > 0 ? this._edgBytes / this._edgFrames : 0;
     const bwSave = legPerFrame > 0
       ? parseFloat((((legPerFrame - edgPerFrame) / legPerFrame) * 100).toFixed(1))

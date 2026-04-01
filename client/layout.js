@@ -83,7 +83,8 @@ export class DuelLayout {
     );
     const edgeLat = Date.now() - t0e;
     out += edgePatch;
-    if (this._metrics) this._metrics.recordEdge(edgeLat, edgeBytes);
+    const lineBytes = Buffer.byteLength(ansiLine);
+    if (this._metrics) this._metrics.recordEdge(edgeLat, edgeBytes, lineBytes);
 
     // ── LEFT: Legacy full redraw, throttled to 10 FPS ───────────────────
     if (now - this._legacyLast >= this._legacyThrottle) {
