@@ -12,29 +12,21 @@ export class MetricsCollector {
     this._t0            = Date.now();
     this._legLat        = [];
     this._edgLat        = [];
-    this._legBytes      = 0;
-    this._edgBytes      = 0;
+    this._legLineBytes  = 0;
+    this._edgPatchBytes = 0;
     this._legFrames     = 0;
     this._edgFrames     = 0;
     this._totalEvents   = 0;
     this._eps           = 0;
     this._epsWindow     = 0;
     this._epsLast       = Date.now();
-    this._legBytesEquiv = 0;
   }
 
-  recordLegacy(latMs, bytes) {
-    this._legLat.push(latMs);
-    if (this._legLat.length > 200) this._legLat.shift();
-    this._legBytes += bytes;
-    this._legFrames++;
-  }
-
-  recordEdge(latMs, bytes, fullLineBytes = 0) {
-    this._legBytesEquiv += fullLineBytes;
+  recordEdge(latMs, edgePatchBytes, legacyEquivBytes) {
     this._edgLat.push(latMs);
-    if (this._edgLat.length > 200) this._edgLat.shift();
-    this._edgBytes += bytes;
+    if (this._edgLat.length > 500) this._edgLat.shift();
+    this._edgPatchBytes += edgePatchBytes;
+    this._legLineBytes  += legacyEquivBytes;
     this._edgFrames++;
     this._totalEvents++;
     this._epsWindow++;
@@ -46,29 +38,33 @@ export class MetricsCollector {
     }
   }
 
-  _avg(arr) { return arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : 0; }
+  recordLegacy(latMs) {
+    this._legLat.push(latMs);
+    if (this._legLat.length > 200) this._legLat.shift();
+    this._legFrames++;
+  }
+
+  _avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 
   get() {
     const elapsed = ((Date.now() - this._t0) / 1000) || 0.001;
     const ll = parseFloat(this._avg(this._legLat).toFixed(2));
     const el = parseFloat(this._avg(this._edgLat).toFixed(2));
-    const legPerFrame = this._edgFrames > 0 ? this._legBytesEquiv / this._edgFrames : 0;
-    const edgPerFrame = this._edgFrames > 0 ? this._edgBytes / this._edgFrames : 0;
-    const bwSave = legPerFrame > 0
-      ? parseFloat((((legPerFrame - edgPerFrame) / legPerFrame) * 100).toFixed(1))
+    const bwSave = this._legLineBytes > 0
+      ? parseFloat((((this._legLineBytes - this._edgPatchBytes) / this._legLineBytes) * 100).toFixed(1))
       : 0;
     return {
-      latency_legacy:    ll,
-      latency_edge:      el,
-      latency_delta:     parseFloat((ll - el).toFixed(2)),
-      bandwidth_legacy:  Math.round(legPerFrame),
-      bandwidth_edge:    Math.round(edgPerFrame),
-      bandwidth_saving:  bwSave,
-      events_per_sec:    this._eps,
-      fps_legacy:        parseFloat((this._legFrames / elapsed).toFixed(1)),
-      fps_edge:          parseFloat((this._edgFrames / elapsed).toFixed(1)),
-      total_events:      this._totalEvents,
-      uptime:            parseFloat(elapsed.toFixed(1)),
+      latency_legacy:   ll,
+      latency_edge:     el,
+      latency_delta:    parseFloat((ll - el).toFixed(2)),
+      bandwidth_legacy: Math.round(this._legLineBytes  / Math.max(1, this._totalEvents)),
+      bandwidth_edge:   Math.round(this._edgPatchBytes / Math.max(1, this._totalEvents)),
+      bandwidth_saving: bwSave,
+      events_per_sec:   this._eps,
+      fps_legacy:       parseFloat((this._legFrames / elapsed).toFixed(1)),
+      fps_edge:         parseFloat((this._edgFrames / elapsed).toFixed(1)),
+      total_events:     this._totalEvents,
+      uptime:           parseFloat(elapsed.toFixed(1)),
     };
   }
 
