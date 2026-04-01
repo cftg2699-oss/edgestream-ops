@@ -36,7 +36,7 @@ export class DuelLayout {
 
     this._cols = process.stdout.columns || 220;
     this._rows = process.stdout.rows    || 50;
-    this._half = Math.floor(this._cols / 2);
+    this._half = Math.floor(this._cols * 0.38);
 
     // Panel dimensions (1-based terminal rows/cols)
     this._panelTop    = HEADER_ROWS + 1;
