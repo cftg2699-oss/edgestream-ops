@@ -60,7 +60,7 @@ ws.on('error', err => {
 });
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
-function shutdown(reason) {
+async function shutdown(reason) {
   sim.stop();
   ws.close();
   layout.teardown();
