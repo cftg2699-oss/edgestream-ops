@@ -5,7 +5,7 @@ import {
   ansiCodesToString,
 } from '../../core/index.js';
 
-const MAX_LINES = 20;
+const MAX_LINES = 38;
 const mv = (row, col) => `\x1b[${row};${col}H`;
 
 export class EdgeStreamEngine {

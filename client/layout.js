@@ -115,7 +115,8 @@ export class DuelLayout {
     const W = this._cols;
     const bwC  = m.bandwidth_saving > 80 ? '32;1' : m.bandwidth_saving > 50 ? '33' : '31';
     const latC = m.latency_edge < m.latency_legacy ? '32;1' : '33';
-    const row4 = `  ${c('90','Latency')}  Legacy:${c('31;1',String(m.latency_legacy).padStart(5)+'ms')}  Edge:${c(latC,String(m.latency_edge).padStart(5)+'ms')}  Δ:${c('33',String(m.latency_delta).padStart(6)+'ms')}     ${c('90','BW/frame')}  Legacy:${c('31;1',this._fmtBytes(m.bandwidth_legacy).padStart(8))}  Edge:${c('32;1',this._fmtBytes(m.bandwidth_edge).padStart(8))}  Saving:${c(bwC,String(m.bandwidth_saving).padStart(5)+'%')}`;
+    const renderSpeedup = m.fps_legacy > 0 ? (m.fps_edge / m.fps_legacy).toFixed(1) : '—';
+    const row4 = `  ${c('90','Latency')}  Legacy:${c('31;1',String(m.latency_legacy).padStart(5)+'ms')}  Edge:${c(latC,String(m.latency_edge).padStart(5)+'ms')}  Δ:${c('33;1',String(m.latency_delta).padStart(6)+'ms')}     ${c('90','Render Speedup:')}${c('32;1',String(renderSpeedup).padStart(6)+'x')}  faster     ${c('90','CPU Savings: full redraw avoided every')}${c('32;1',' '+Math.round(1000/Math.max(1,m.fps_legacy))+'ms')}`;
     const row5 = `  ${c('90','Events/s:')}${c('33;1',String(m.events_per_sec).padStart(6))}   ${c('90','FPS Legacy:')}${c('31;1',String(m.fps_legacy).padStart(5))}  FPS Edge:${c('32;1',String(m.fps_edge).padStart(6))}   ${c('90','Total:')}${c('37',String(m.total_events).padStart(9))}   ${c('90','Uptime:')}${c('37',String(m.uptime).padStart(6)+'s')}`;
     let out = '';
     out += mv(4,1)+c('36;1','║')+row4+' '.repeat(Math.max(0,W-2-this._vlen(row4)))+c('36;1','║');
