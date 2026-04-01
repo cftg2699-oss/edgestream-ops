@@ -15,7 +15,7 @@ import {
   diffAnsiCodes,
   ansiCodesToString,
   reduceAnsiCodes,
-} from '../core/index.js';
+} from '../../core/index.js';
 
 // Max lines kept in the rolling window
 const MAX_LINES = 20;
