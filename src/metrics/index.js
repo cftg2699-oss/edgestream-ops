@@ -50,15 +50,17 @@ export class MetricsCollector {
     const elapsed = ((Date.now() - this._t0) / 1000) || 0.001;
     const ll = parseFloat(this._avg(this._legLat).toFixed(2));
     const el = parseFloat(this._avg(this._edgLat).toFixed(2));
-    const bwSave = this._legBytes > 0
-      ? parseFloat((((this._legBytes - this._edgBytes) / this._legBytes) * 100).toFixed(1))
+    const legPerFrame = this._legFrames > 0 ? this._legBytes / this._legFrames : 0;
+    const edgPerFrame = this._edgFrames > 0 ? this._edgBytes / this._edgFrames : 0;
+    const bwSave = legPerFrame > 0
+      ? parseFloat((((legPerFrame - edgPerFrame) / legPerFrame) * 100).toFixed(1))
       : 0;
     return {
       latency_legacy:    ll,
       latency_edge:      el,
       latency_delta:     parseFloat((ll - el).toFixed(2)),
-      bandwidth_legacy:  this._legBytes,
-      bandwidth_edge:    this._edgBytes,
+      bandwidth_legacy:  Math.round(legPerFrame),
+      bandwidth_edge:    Math.round(edgPerFrame),
       bandwidth_saving:  bwSave,
       events_per_sec:    this._eps,
       fps_legacy:        parseFloat((this._legFrames / elapsed).toFixed(1)),
